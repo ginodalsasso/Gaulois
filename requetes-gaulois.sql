@@ -18,3 +18,16 @@ INNER JOIN specialite ON personnage.id_specialite = specialite.id_specialite
 ORDER BY nom_lieu, nom_personnage ASC
 
 --4. Nom des spécialités avec nombre de personnages par spécialité (trié par nombre de personnages décroissant).
+SELECT nom_specialite, COUNT(nom_personnage) AS nb_personnage
+FROM personnage
+INNER JOIN specialite ON personnage.id_specialite = specialite.id_specialite
+GROUP BY nom_specialite
+ORDER BY nb_personnage DESC;
+
+--5. Nom, date et lieu des batailles, classées de la plus récente à la plus ancienne (dates affichées au format jj/mm/aaaa).
+SELECT nom_bataille, nom_lieu, DATE_FORMAT(date_bataille, "%d/%m/%Y") AS date_bataille
+FROM bataille
+INNER JOIN lieu ON bataille.id_lieu = lieu.id_lieu
+ORDER BY date_bataille DESC
+
+--6. Nom des potions + coût de réalisation de la potion (trié par coût décroissant).
