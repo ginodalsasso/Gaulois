@@ -31,3 +31,9 @@ INNER JOIN lieu ON bataille.id_lieu = lieu.id_lieu
 ORDER BY date_bataille DESC
 
 --6. Nom des potions + coût de réalisation de la potion (trié par coût décroissant).
+SELECT nom_potion, SUM(qte*cout_ingredient) AS cout_total
+FROM potion
+INNER JOIN composer ON potion.id_potion = composer.id_potion
+INNER JOIN ingredient ON composer.id_ingredient = ingredient.id_ingredient
+GROUP BY nom_potion
+ORDER BY cout_total DESC 
