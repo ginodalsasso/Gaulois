@@ -144,3 +144,13 @@ SELECT p.nom_personnage, id_potion
     LEFT JOIN autoriser_boire b ON p.id_personnage = b.id_personnage
     WHERE id_potion IS NULL
 
+
+
+-- En écrivant toujours des requêtes SQL, modifiez la base de données comme suit :
+
+--A. Ajoutez le personnage suivant : Champdeblix, agriculteur résidant à la ferme Hantassion de Rotomagus.
+
+INSERT INTO personnage p (nom_personnage, adresse_personnage, id_lieu, id_specialite)
+    VALUES ('Champdeblix', ferme Hantassion, Rotomagus, Agriculteur)
+    WHERE p.id_lieu = lieu.id_lieu 
+    AND p.id_specialite = specialite.id_specialite
