@@ -47,6 +47,19 @@ INNER JOIN ingredient i ON c.id_ingredient = i.id_ingredient
 WHERE nom_potion IN ('Santé')
 
 --8. Nom du ou des personnages qui ont pris le plus de casques dans la bataille 'Bataille du village gaulois'.
+SELECT p.nom_personnage, SUM(pc.qte) AS nb_casques
+FROM personnage p, bataille b, prendre_casque pc
+WHERE p.id_personnage = pc.id_personnage
+AND pc.id_bataille = b.id_bataille
+AND b.nom_bataille = 'Bataille du village gaulois'
+GROUP BY p.id_personnage
+    HAVING nb_casques >= ALL( --HAVING est comme WHERE pour une fonction d'abregation (COUNT, SUM) WHERE ne fonctionne pas dans ces cas
+        SELECT SUM(pc.qte)
+        FROM prendre_casque pc, bataille b
+        WHERE b.id_bataille = pc.id_bataille
+        AND b.nom_bataille = 'Bataille du village gaulois'
+        GROUP BY pc.id_personnage
+    )
 
 --9. Nom des personnages et leur quantité de potion bue (en les classant du plus grand buveur au plus petit).
 SELECT nom_personnage, dose_boire
@@ -55,11 +68,13 @@ INNER JOIN boire b ON p.id_personnage = b.id_personnage
 ORDER BY dose_boire DESC
 
 --10. Nom de la bataille où le nombre de casques pris a été le plus important.
-SELECT nom_bataille, qte
+SELECT b.nom_bataille, pc.id_casque 
 FROM prendre_casque pc
 INNER JOIN bataille b ON pc.id_bataille = b.id_bataille
-ORDER BY qte DESC
-LIMIT 1
+    WHERE qte >= ALL(
+        SELECT qte
+        FROM prendre_casque
+    )
 
 --11. Combien existe-t-il de casques de chaque type et quel est leur coût total ? (classés par nombre décroissant)
 SELECT count(tc.id_type_casque) AS c, tc.nom_type_casque, SUM(cout_casque) AS cout_total 
@@ -74,5 +89,22 @@ INNER JOIN composer c ON p.id_potion = c.id_potion
 INNER JOIN ingredient i ON c.id_ingredient = i.id_ingredient
 WHERE nom_ingredient = 'Poisson frais'
 
+--13. Nom du / des lieu(x) possédant le plus d'habitants, en dehors du village gaulois.
+SELECT l.nom_lieu, COUNT(p.id_lieu) AS c
+FROM lieu l
+INNER JOIN personnage p ON l.id_lieu = p.id_lieu 
+WHERE l.nom_lieu != 'Village gaulois'
+GROUP BY l.nom_lieu --UTILISER LA FONCTION MAX ?
 
+--14. Nom des personnages qui n'ont jamais bu aucune potion.
+SELECT p.nom_personnage, dose_boire
+FROM personnage p
+LEFT JOIN boire b ON p.id_personnage = b.id_personnage
+WHERE dose_boire IS NULL
+
+--15. Nom du / des personnages qui n'ont pas le droit de boire de la potion 'Magique'.
+SELECT p.nom_personnage, id_potion
+FROM personnage p
+LEFT JOIN autoriser_boire b ON p.id_personnage = b.id_personnage
+WHERE id_potion IS NULL
 
