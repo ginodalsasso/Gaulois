@@ -11,7 +11,7 @@ SELECT COUNT(nom_personnage) AS nb_personnages, l.nom_lieu
     FROM personnage p 
     INNER JOIN lieu l
     ON l.id_lieu = p.id_lieu --lien entre la table lieu grace à la clé étragère id_lieu et la table personnage
-    GROUP BY p.id_lieu -- regroupe le nom des personnages par lieu
+    GROUP BY p.id_lieu -- GROUP BY toujours l'id de préférence pour éviter les erreurs
     ORDER BY nb_personnages DESC -- trie par nombre de personnages décroissant
 
 
@@ -29,7 +29,7 @@ SELECT nom_personnage, adresse_personnage, nom_lieu, nom_specialite
 SELECT nom_specialite, COUNT(nom_personnage) AS nb_personnage --COUNT pour compter le nombre de personnage
     FROM personnage p
     INNER JOIN specialite s ON p.id_specialite = s.id_specialite 
-    GROUP BY nom_specialite -- regrouper par specialités
+    GROUP BY s.id_specialite -- -- GROUP BY toujours l'id de préférence pour éviter les erreurs
     ORDER BY nb_personnage DESC; -- trié par nombre de personnages décroissant
 
 
@@ -47,7 +47,7 @@ SELECT nom_potion, SUM(qte*cout_ingredient) AS cout_total --fonction SUM pour mu
     FROM potion p
     INNER JOIN composer c ON p.id_potion = c.id_potion
     INNER JOIN ingredient i ON c.id_ingredient = i.id_ingredient
-    GROUP BY nom_potion -- GROUP BY quand nous utilisons la fonction SUM est automatique !
+    GROUP BY p.id_potion -- GROUP BY quand nous utilisons la fonction SUM est automatique !
     ORDER BY cout_total DESC 
 
 
@@ -80,28 +80,33 @@ SELECT p.nom_personnage, SUM(pc.qte) AS nb_casques -- SUM =  prendre_casque => q
 
 --9. Nom des personnages et leur quantité de potion bue (en les classant du plus grand buveur au plus petit).
 
-SELECT nom_personnage, dose_boire 
+SELECT nom_personnage, SUM(dose_boire) AS qteTotale
     FROM personnage p
     INNER JOIN boire b ON p.id_personnage = b.id_personnage
-    ORDER BY dose_boire DESC
+    GROUP BY p.id_personnage
+    ORDER BY qteTotale DESC
 
 
 --10. Nom de la bataille où le nombre de casques pris a été le plus important.
 
-SELECT b.nom_bataille, pc.id_casque 
+SELECT b.nom_bataille, SUM(pc.qte) AS pc_qte -- SUM des casques pris dans prendre_casque => qte
     FROM prendre_casque pc
     INNER JOIN bataille b ON pc.id_bataille = b.id_bataille
-        WHERE qte >= ALL( -- Filtre les résultats pour inclure seulement les casques dont la qte est égale à la plus grande quantité de tous les casques
-            SELECT qte
-            FROM prendre_casque
-        )
+    GROUP BY b.id_bataille
+        -- Filtre les résultats pour inclure seulement les casques dont la qte est égale à la plus grande quantité de tous les casques
+        HAVING pc_qte >= ALL(
+            SELECT SUM(pc.qte)
+            FROM prendre_casque pc
+            INNER JOIN bataille b ON pc.id_bataille = b.id_bataille
+    		GROUP BY b.id_bataille
+        )      
 
 
 --11. Combien existe-t-il de casques de chaque type et quel est leur coût total ? (classés par nombre décroissant)
 
-SELECT count(tc.id_type_casque) AS c, tc.nom_type_casque, SUM(cout_casque) AS cout_total -- le nombre de casques de chaque type, le nom du type de casque, et la somme du coût total de ces casques
+SELECT COUNT(tc.id_type_casque) AS c, tc.nom_type_casque, SUM(cout_casque) AS cout_total -- le nombre de casques de chaque type, le nom du type de casque, et la somme du coût total de ces casques
     INNER JOIN casque c ON tc.id_type_casque = c.id_type_casque
-    GROUP BY tc.nom_type_casque --Regroupe les résultats par le nom du type de casque
+    GROUP BY tc.id_type_casque --Regroupe les résultats par le nom du type de casque
 
 
 --12. Nom des potions dont un des ingrédients est le poisson frais.
@@ -144,13 +149,76 @@ SELECT p.nom_personnage, id_potion
     LEFT JOIN autoriser_boire b ON p.id_personnage = b.id_personnage
     WHERE id_potion IS NULL
 
+SELECT p.nom_personnage
+FROM personnage p
+WHERE p.id_personnage NOT IN (
+    SELECT id_personnage FROM autoriser_boire WHERE id_potion = 1
+)
 
 
 -- En écrivant toujours des requêtes SQL, modifiez la base de données comme suit :
 
 --A. Ajoutez le personnage suivant : Champdeblix, agriculteur résidant à la ferme Hantassion de Rotomagus.
 
+    -- en allant chercher les valeures des id dans leurs tables
+
 INSERT INTO personnage p (nom_personnage, adresse_personnage, id_lieu, id_specialite)
-    VALUES ('Champdeblix', ferme Hantassion, Rotomagus, Agriculteur)
-    WHERE p.id_lieu = lieu.id_lieu 
-    AND p.id_specialite = specialite.id_specialite
+-- insertion des nouvelles valeurs dans les catégories associées, donner les valeurs dans le même order que INSERT
+    VALUES (
+        'Champdeblix', 
+        "ferme Hantassion", 
+        SELECT id_lieu FROM lieu WHERE nom_lieu = "Rotomagus", 
+        SELECT id_specialite FROM specialite WHERE nom_specialite = "Agriculteur"
+    ) 
+
+    -- ou en indiquant directement la valeur de l'integer lié à l'id
+
+INSERT INTO personnage p (nom_personnage, adresse_personnage, id_lieu, id_specialite)
+-- insertion des nouvelles valeurs dans les catégories associées, donner les valeurs dans le même order que INSERT
+    VALUES (
+        'Champdeblix', 
+        "ferme Hantassion", 
+        6,
+        12
+    ) 
+
+
+-- B. Autorisez Bonemine à boire de la potion magique, elle est jalouse d'Iélosubmarine..
+
+INSERT INTO autoriser_boire (id_potion, id_personnage)
+-- insertion des nouvelles valeurs dans les catégories associées, donner les valeurs dans le même order que INSERT
+	VALUES (1, 12) -- id = integer
+
+
+--C. Supprimez les casques grecs qui n'ont jamais été pris lors d'une bataille.
+
+DELETE FROM prendre_casque pc
+-- JOINTURE pour récupérer les informations stockées dans d'autres tables
+    RIGHT JOIN casque c ON pc.id_casque = c.id_casque
+    RIGHT JOIN type_casque tyc ON c.id_type_casque = tyc.id_type_casque
+-- cible la la ligne où les informations sont à remplacer
+    WHERE c.id_type_casque = 2 AND pc.qte = 0
+
+
+--D. Modifiez l'adresse de Zérozérosix : il a été mis en prison à Condate.
+
+UPDATE personnage
+-- set nouvelle valeure 
+	SET id_lieu = 9
+-- cible la/les lignes où les informations sont à remplacer
+	WHERE id_personnage = 23
+
+
+-- E. La potion 'Soupe' ne doit plus contenir de persil.
+
+DELETE FROM composer
+-- cible la/les lignes où les informations sont à supprimer
+    WHERE id_ingredient = 19 AND id_potion = 9
+
+
+-- F. Obélix s'est trompé : ce sont 42 casques Weisenau, et non Ostrogoths, qu'il a pris lors de la 
+-- bataille 'Attaque de la banque postale'. Corrigez son erreur !
+
+UPDATE prendre_casque pc
+    SET pc.qte = 42 AND pc.id_personnage = 10
+    WHERE pc.id_bataille = 9
